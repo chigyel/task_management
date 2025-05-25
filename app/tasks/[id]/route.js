@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { verifyToken } from '@/app/lib/auth';
-import prisma from '@/app/lib/prisma/route';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function GET(request, { params }) {
   try {
