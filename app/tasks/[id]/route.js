@@ -1,55 +1,75 @@
-import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/app/lib/auth';
+import prisma from '@/app/lib/prisma/route';
 
-export async function PUT(req, { params }) {
-  const token = req.headers.get('authorization')?.split(' ')[1];
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export async function GET(request, { params }) {
   try {
-    const decoded = verifyToken(token);
-    const data = await req.json();
-    const taskId = parseInt(params.id);
-
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task || task.userId !== decoded.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const token = request.headers.get('authorization')?.split(' ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const updated = await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        title: data.title,
-        description: data.description,
-        dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-        status: data.status,
-        priority: data.priority,
-      },
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const task = await prisma.task.findUnique({
+      where: { id: params.id },
     });
 
-    return NextResponse.json(updated);
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to update task' }, { status: 400 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(task);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function DELETE(req, { params }) {
-  const token = req.headers.get('authorization')?.split(' ')[1];
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export async function PUT(request, { params }) {
   try {
-    const decoded = verifyToken(token);
-    const taskId = parseInt(params.id);
-
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task || task.userId !== decoded.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const token = request.headers.get('authorization')?.split(' ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await prisma.task.delete({ where: { id: taskId } });
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
 
-    return NextResponse.json({ message: 'Task deleted' });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to delete task' }, { status: 400 });
+    const body = await request.json();
+    const task = await prisma.task.update({
+      where: { id: params.id },
+      data: body,
+    });
+
+    return NextResponse.json(task);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const token = request.headers.get('authorization')?.split(' ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    await prisma.task.delete({
+      where: { id: params.id },
+    });
+
+    return NextResponse.json({ message: 'Task deleted successfully' });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
